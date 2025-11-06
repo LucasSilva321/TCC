@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>GameNews — Notícias de Jogos</title>
+
+    <!-- Fonte profissional -->
+    <link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;600;700&display=swap" rel="stylesheet">
+
+    <!-- CSS -->
+    <link rel="stylesheet" href="style.css" />
+  </head>
+
+  <body>
+    <header class="topbar" role="banner">
+      <div class="topbar-inner">
+        <button class="menu-btn" id="menuBtn" aria-controls="sidebar" aria-expanded="false" aria-label="Abrir menu">☰</button>
+        <div class="search" role="search">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M21 21l-4.35-4.35" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="1.6"/></svg>
+          <input id="searchInput" type="search" placeholder="Pesquisar notícias…" aria-label="Pesquisar notícias" />
+        </div>
+        <a class="brand" href="#">GameNews</a>
+      </div>
+
+      <!-- Filtro de categorias -->
+      <nav class="filter-bar" id="filterBar" aria-label="Filtro de categorias">
+        <button class="filter-btn active" data-category="todas">Todas</button>
+        <button class="filter-btn" data-category="Xbox">Xbox</button>
+        <button class="filter-btn" data-category="Playstation">PlayStation</button>
+        <button class="filter-btn" data-category="Nintendo">Nintendo</button>
+        <button class="filter-btn" data-category="PC">PC</button>
+        <button class="filter-btn" data-category="Mobile">Mobile</button>
+        <button class="filter-btn" data-category="Retro">Retro</button>
+        <button class="filter-btn" data-category="Reviews">Reviews</button>
+        <button class="filter-btn" data-category="Lançamentos">Lançamentos</button>
+        <button class="filter-btn" data-category="Tecnologia">Tecnologia</button>
+        <button class="filter-btn" data-category="Indie">Indie</button>
+      </nav>
+    </header>
+
+    <!-- Sidebar -->
+    <aside id="sidebar" class="sidebar" aria-hidden="true">
+      <header>
+        <strong>Menu</strong>
+        <button class="close" id="closeSidebar" aria-label="Fechar menu">✕</button>
+      </header>
+      <nav aria-label="Menu lateral">
+        <ul>
+          <li><button id="openConfig">Configurações</button></li>
+          <li><button id="openLogin">Login</button></li>
+          <li><a href="#ajuda">Ajuda ao cliente</a></li>
+        </ul>
+      </nav>
+    </aside>
+    <div id="backdrop" class="backdrop" aria-hidden="true"></div>
+
+    <!-- Conteúdo principal -->
+    <main id="conteudo" tabindex="-1">
+      <section class="carousel-wrap">
+        <h2 class="carousel-title">Destaques</h2>
+        <div class="carousel" id="carousel">
+          <a href="noticia.html?id=1" class="card-hero">
+            <img src="https://picsum.photos/800/400?random=1" alt="Notícia 1">
+            <div class="p">
+              <h2>Nova geração de consoles impressiona</h2>
+              <p>Saiba tudo sobre os lançamentos do ano.</p>
+            </div>
+          </a>
+          <a href="noticia.html?id=2" class="card-hero">
+            <img src="https://picsum.photos/800/400?random=2" alt="Notícia 2">
+            <div class="p">
+              <h2>Jogo do ano é revelado</h2>
+              <p>Veja quem levou o prêmio mais aguardado.</p>
+            </div>
+          </a>
+        </div>
+        <button class="carousel-nav prev" id="prevBtn">‹</button>
+        <button class="carousel-nav next" id="nextBtn">›</button>
+      </section>
+
+      <section>
+        <h2 class="section-title">Últimas notícias</h2>
+        <div class="news-grid" id="newsGrid">
+          <a href="noticia.html?id=4" class="news-card" data-category="Xbox">
+            <img src="https://picsum.photos/400/200?random=4" alt="">
+            <div class="p">
+              <span class="tag">Xbox</span>
+              <h3>Game Pass ganha novos títulos em setembro</h3>
+              <p class="muted">O serviço da Microsoft continua crescendo.</p>
+            </div>
+          </a>
+          <a href="noticia.html?id=5" class="news-card" data-category="Playstation">
+            <img src="https://picsum.photos/400/200?random=5" alt="">
+            <div class="p">
+              <span class="tag">Playstation</span>
+              <h3>PS5 recebe atualização aguardada</h3>
+              <p class="muted">Novos recursos prometem melhorar a experiência.</p>
+            </div>
+          </a>
+          <a href="noticia.html?id=6" class="news-card" data-category="Nintendo">
+            <img src="https://picsum.photos/400/200?random=6" alt="">
+            <div class="p">
+              <span class="tag">Nintendo</span>
+              <h3>Switch 2 é anunciado oficialmente</h3>
+              <p class="muted">Nintendo surpreende com novidades.</p>
+            </div>
+          </a>
+          <a href="noticia.html?id=7" class="news-card" data-category="PC">
+            <img src="https://picsum.photos/400/200?random=7" alt="">
+            <div class="p">
+              <span class="tag">PC</span>
+              <h3>Nova placa de vídeo revoluciona o mercado</h3>
+              <p class="muted">Desempenho e eficiência em destaque.</p>
+            </div>
+          </a>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <p>© 2025 GameNews — Todos os direitos reservados.</p>
+    </footer>
+
+    <!-- Modais -->
+   <!-- Modal Configurações (substituir o anterior) -->
+<div class="modal" id="configModal" role="dialog" aria-modal="true" aria-labelledby="configTitle" aria-hidden="true">
+  <div class="overlay" data-close="config"></div>
+  <div class="dialog" role="document">
+    <header>
+      <h3 id="configTitle">Configurações</h3>
+      <button class="close" data-close="config" aria-label="Fechar">✕</button>
+    </header>
+
+    <div class="prefs">
+      <!-- Tema -->
+      <div class="row">
+        <label for="darkMode">Tema</label>
+        <select id="darkMode">
+          <option value="dark">Escuro</option>
+          <option value="light">Claro</option>
+        </select>
+      </div>
+
+      <!-- Tamanho da fonte -->
+      <div class="row">
+        <label for="fontSize">Tamanho da fonte</label>
+        <input id="fontSize" type="range" min="14" max="20" step="1" />
+      </div>
+
+      <!-- Idioma -->
+      <div class="row">
+        <label for="language">Idioma</label>
+        <select id="language">
+          <option value="pt">Português (BR)</option>
+          <option value="en">English</option>
+        </select>
+      </div>
+
+      <!-- Layout das notícias -->
+      <div class="row">
+        <label for="layoutMode">Layout das notícias</label>
+        <select id="layoutMode">
+          <option value="grid">Grade</option>
+          <option value="list">Lista</option>
+        </select>
+      </div>
+
+      <!-- Notificações (simulação) -->
+      <div class="row">
+        <label for="notifications">Notificações</label>
+        <input id="notifications" type="checkbox" />
+      </div>
+
+      <!-- Configurações gerais (placeholder) -->
+      <div class="row">
+        <label for="autoplayMedia">Reproduzir mídia automaticamente</label>
+        <input id="autoplayMedia" type="checkbox" />
+      </div>
+    </div>
+
+    <div class="actions">
+      <button class="btn ghost" data-close="config">Cancelar</button>
+      <button class="btn primary" id="savePrefs">Salvar</button>
+    </div>
+  </div>
+</div>
+
+    <script src="script.js"></script>
+  </body>
+</html>
