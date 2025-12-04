@@ -1,356 +1,398 @@
-// =================== script.js (corrigido e completo) ===================
+// script.js — final: filtro multi-select, results condicional, modals, prefs (reader+region), switches usáveis
 
-// ===== Sidebar =====
-const menuBtn = document.getElementById("menuBtn");
-const sidebar = document.getElementById("sidebar");
-const closeSidebar = document.getElementById("closeSidebar");
-const backdrop = document.getElementById("backdrop");
+const onReady = (fn) => {
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', fn);
+  else fn();
+};
 
-if (menuBtn) {
-  menuBtn.addEventListener("click", () => {
-    sidebar.classList.add("open");
-    backdrop.classList.add("show");
-    sidebar.setAttribute("aria-hidden", "false");
-    menuBtn.setAttribute("aria-expanded", "true");
-  });
-}
-if (closeSidebar) {
-  closeSidebar.addEventListener("click", closeMenu);
-}
-if (backdrop) {
-  backdrop.addEventListener("click", closeMenu);
-}
+onReady(() => {
+  // helpers
+  const $ = (s, r = document) => r.querySelector(s);
+  const $$ = (s, r = document) => Array.from((r || document).querySelectorAll(s));
+  const norm = s => String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
 
-function closeMenu() {
-  sidebar.classList.remove("open");
-  backdrop.classList.remove("show");
-  sidebar.setAttribute("aria-hidden", "true");
-  menuBtn.setAttribute("aria-expanded", "false");
-}
+  // top elements
+  const menuBtn = $('#menuBtn');
+  const sidebar = $('#sidebar');
+  const closeSidebar = $('#closeSidebar');
+  const backdrop = $('#backdrop');
 
-// ===== Carrossel =====
-const carousel = document.getElementById("carousel");
-const prevBtn = document.getElementById("prevBtn");
-const nextBtn = document.getElementById("nextBtn");
+  function openMenu(){ sidebar?.classList.add('open'); backdrop?.classList.add('show'); sidebar?.setAttribute('aria-hidden','false'); menuBtn?.setAttribute('aria-expanded','true'); }
+  function closeMenu(){ sidebar?.classList.remove('open'); backdrop?.classList.remove('show'); sidebar?.setAttribute('aria-hidden','true'); menuBtn?.setAttribute('aria-expanded','false'); }
 
-function carouselStep() {
-  const el = carousel?.querySelector(".card-hero");
-  return el ? el.getBoundingClientRect().width : 300;
-}
-if (prevBtn && carousel) {
-  prevBtn.addEventListener("click", () => {
-    carousel.scrollBy({ left: -carouselStep() - 16, behavior: "smooth" });
-  });
-}
-if (nextBtn && carousel) {
-  nextBtn.addEventListener("click", () => {
-    carousel.scrollBy({ left: carouselStep() + 16, behavior: "smooth" });
-  });
-}
-
-// ===== Modais (Config / Login) =====
-function setupModal(openBtnId, modalId) {
-  const openBtn = document.getElementById(openBtnId);
-  const modal = document.getElementById(modalId);
-  if (!openBtn || !modal) return;
-  const overlay = modal.querySelector(".overlay");
-  const closes = modal.querySelectorAll(".close");
-
-  openBtn.addEventListener("click", () => {
-    modal.classList.add("show");
-    modal.setAttribute("aria-hidden", "false");
-    backdrop.classList.add("show");
-  });
-
-  if (overlay) overlay.addEventListener("click", () => {
-    modal.classList.remove("show");
-    modal.setAttribute("aria-hidden", "true");
-    backdrop.classList.remove("show");
-  });
-
-  closes.forEach(btn => btn.addEventListener("click", () => {
-    modal.classList.remove("show");
-    modal.setAttribute("aria-hidden", "true");
-    backdrop.classList.remove("show");
-  }));
-}
-setupModal("openConfig", "configModal");
-setupModal("openLogin", "loginModal");
-
-// ===== Tema escuro (Config) =====
-const darkToggle = document.getElementById("darkMode");
-if (darkToggle) {
-  darkToggle.addEventListener("change", (e) => {
-    document.documentElement.dataset.theme = e.target.checked ? "light" : "dark";
-    // observe: original used light/dark mapping; adjust if needed
-  });
-}
-
-// ===== Configurações adicionais (tamanho da fonte, layout) =====
-const fontSizeSelect = document.getElementById("fontSize");
-if (fontSizeSelect) {
-  fontSizeSelect.addEventListener("change", (e) => {
-    const val = e.target.value;
-    // valores esperados: "16","18","20" or "small"/"medium"/"large" depending on your HTML
-    if (val === "16" || val === "small" || val === "Padrão") document.documentElement.style.setProperty("--font-size", "16px");
-    else if (val === "18" || val === "medium" || val === "Grande") document.documentElement.style.setProperty("--font-size", "18px");
-    else if (val === "20" || val === "large" || val === "Muito grande") document.documentElement.style.setProperty("--font-size", "20px");
-    else document.documentElement.style.setProperty("--font-size", val + "px");
-  });
-}
-
-const layoutSelect = document.getElementById("layout");
-const newsGrid = document.getElementById("newsGrid");
-if (layoutSelect && newsGrid) {
-  layoutSelect.addEventListener("change", (e) => {
-    const v = e.target.value;
-    if (v === "compact") {
-      newsGrid.style.gridTemplateColumns = "repeat(auto-fill, minmax(200px,1fr))";
-    } else {
-      newsGrid.style.gridTemplateColumns = "repeat(auto-fill, minmax(260px,1fr))";
-    }
-  });
-}
-
-// ===== Pesquisa (filtro por texto) =====
-const searchInput = document.getElementById("searchInput");
-if (searchInput) {
-  const normalize = (t) => String(t || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-  searchInput.addEventListener("input", () => {
-    const q = normalize(searchInput.value);
-    const allCards = Array.from(document.querySelectorAll(".news-card, .card-hero"));
-    allCards.forEach(card => {
-      const hay = normalize(card.textContent + " " + (card.dataset.category || card.querySelector(".tag")?.textContent || ""));
-      card.style.display = (q === "" || hay.includes(q)) ? "" : "none";
-    });
-  });
-}
-
-// ===== Filtro de Categorias (robusto e corrigido) =====
-(function () {
-  function initFilter() {
-    const filterBar = document.getElementById("filterBar") ||
-                      document.querySelector(".filter-bar") ||
-                      document.querySelector(".category-filter") ||
-                      document.querySelector(".filter-bar") ||
-                      document.querySelector("nav.filter-bar");
-
-    if (!filterBar) {
-      console.warn("Filtro: não encontrou a barra de filtros.");
-      return;
-    }
-
-    const buttons = Array.from(filterBar.querySelectorAll("button"));
-    if (!buttons.length) {
-      console.warn("Filtro: nenhum botão encontrado na barra de filtros.");
-      return;
-    }
-
-    // seleciona cards que podem ser filtrados (grid + destaques)
-    const newsGridCards = Array.from(document.querySelectorAll(".news-card"));
-    const heroCards = Array.from(document.querySelectorAll(".card-hero"));
-    const allCards = newsGridCards.concat(heroCards);
-
-    const norm = s => String(s || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-
-    function applyFilter(category) {
-      const catNorm = norm(category);
-      allCards.forEach(card => {
-        const dataCat = card.dataset.category || card.querySelector(".tag")?.textContent || "";
-        const cardCatNorm = norm(dataCat);
-        const show = catNorm === "todas" || cardCatNorm === catNorm || cardCatNorm.includes(catNorm) || catNorm === "" ;
-        card.style.display = show ? "" : "none";
-      });
-    }
-
-    // delegação
-    filterBar.addEventListener("click", (ev) => {
-      const btn = ev.target.closest("button");
-      if (!btn || !filterBar.contains(btn)) return;
-
-      buttons.forEach(b => b.classList.remove("active"));
-      btn.classList.add("active");
-
-      const category = btn.dataset.category || btn.getAttribute("data-category") || btn.textContent.trim();
-      applyFilter(category);
-    });
-
-    // inicializa com "Todas" ativo
-    const initialBtn = buttons.find(b => (b.dataset.category || b.getAttribute("data-category") || b.textContent).toLowerCase().includes("todas")) || buttons[0];
-    if (initialBtn) {
-      initialBtn.classList.add("active");
-      const category = initialBtn.dataset.category || initialBtn.getAttribute("data-category") || initialBtn.textContent.trim();
-      applyFilter(category);
-    }
-  }
-
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", initFilter);
-  } else {
-    initFilter();
-  }
-})();
-
-// ===== Fechar modais / sidebar com ESC =====
-window.addEventListener("keydown", (e) => {
-  if (e.key === "Escape") {
+  menuBtn?.addEventListener('click', openMenu);
+  closeSidebar?.addEventListener('click', closeMenu);
+  backdrop?.addEventListener('click', ()=>{
     closeMenu();
-    document.querySelectorAll(".modal.show").forEach(m => m.classList.remove("show"));
-    backdrop.classList.remove("show");
+    document.querySelectorAll('.modal.show').forEach(m=>m.classList.remove('show'));
+    backdrop.classList.remove('show');
+  });
+
+  // modal helpers
+  function openModal(id){
+    const m = document.getElementById(id);
+    if (!m) return;
+    m.classList.add('show');
+    m.setAttribute('aria-hidden','false');
+    backdrop.classList.add('show');
   }
-});
-// ===== Preferências: salvar / aplicar / carregar =====
-(function () {
-  const PREF_KEY = 'gamenews:prefs';
+  function closeModal(m){
+    if (!m) return;
+    m.classList.remove('show');
+    m.setAttribute('aria-hidden','true');
+    backdrop.classList.remove('show');
+  }
 
-  // elementos
-  const configModal = document.getElementById('configModal');
-  const openConfigBtn = document.getElementById('openConfig');
-  const savePrefsBtn = document.getElementById('savePrefs');
+  // generic close buttons
+  document.body.addEventListener('click', (e)=>{
+    const btn = e.target.closest('[data-close], .close');
+    if (btn){
+      const modal = btn.closest('.modal');
+      if (modal) closeModal(modal);
+    }
+  });
 
-  const darkModeSel = document.getElementById('darkMode');        // select: dark | light
-  const fontSizeRange = document.getElementById('fontSize');      // range 14-20
-  const languageSel = document.getElementById('language');        // select
-  const layoutModeSel = document.getElementById('layoutMode');    // select: grid | list
-  const notificationsChk = document.getElementById('notifications'); // checkbox
-  const autoplayChk = document.getElementById('autoplayMedia');   // checkbox
+  // sidebar buttons open modals
+  sidebar?.addEventListener('click', (e)=>{
+    const btn = e.target.closest('button[data-modal]');
+    if (!btn) return;
+    const id = btn.getAttribute('data-modal');
+    if (!id) return;
+    openModal(id);
+    closeMenu();
+  });
 
-  // apply: atualiza UI / DOM conforme prefs
-  function applyPrefs(p = {}) {
-    // tema
-    const theme = p.theme || 'dark';
-    document.documentElement.setAttribute('data-theme', theme === 'light' ? 'light' : 'dark');
+  // header open shortcuts
+  $('#openConfig')?.addEventListener('click', ()=> openModal('configModal'));
+  $('#openLogin')?.addEventListener('click', ()=> openModal('loginModal'));
 
-    // font-size (aplica na raíz para que o css que usa var(--font-size) funcione)
-    const fs = p.fontSize || 16;
-    document.documentElement.style.setProperty('--font-size', fs + 'px');
+  // search & filter
+  const searchInput = $('#searchInput');
+  const filterBar = $('#filterBar');
+  const clearBtn = $('#clearFilter');
+  const resultsCountEl = $('#resultsCount');
 
-    // layout
-    if (layoutModeSel) {
-      layoutModeSel.value = p.layout || 'grid';
+  const buttons = filterBar ? Array.from(filterBar.querySelectorAll('.filter-btn')) : [];
+  const newsGridCards = Array.from($$('.news-card'));
+  const heroCards = Array.from($$('.card-hero'));
+  const allCards = newsGridCards.concat(heroCards);
+
+  // hide count initially
+  if (resultsCountEl) resultsCountEl.style.display = 'none';
+
+  // badges
+  (function setBadges(){
+    const counts = {};
+    allCards.forEach(card=>{
+      const cat = (card.dataset.category || card.querySelector('.tag')?.textContent || '').trim();
+      if (!cat) return;
+      counts[cat] = (counts[cat]||0) + 1;
+    });
+    buttons.forEach(btn=>{
+      const cat = btn.dataset.category || btn.textContent.trim();
+      const badge = btn.querySelector('.badge');
+      const c = counts[cat] || 0;
+      if (badge){ badge.textContent = c; if (c===0) badge.classList.add('hidden'); else badge.classList.remove('hidden'); }
+    });
+    const todas = buttons.find(b => (b.dataset.category||b.textContent||'').toLowerCase().includes('todas'));
+    if (todas){ const b = todas.querySelector('.badge'); if (b){ b.textContent = allCards.length; if (allCards.length===0) b.classList.add('hidden'); else b.classList.remove('hidden'); } }
+  })();
+
+  const selected = new Set();
+
+  function hasActiveFilters(){
+    if (selected.size > 0) return true;
+    return buttons.some(b => { 
+      const c = (b.dataset.category||b.textContent||'').toLowerCase(); 
+      if (c.includes('todas')) return false; 
+      return b.classList.contains('active'); 
+    });
+  }
+
+  function updateResultsVisibility(){
+    const hasQuery = !!(searchInput && searchInput.value && searchInput.value.trim() !== '');
+    const hasFilter = hasActiveFilters();
+    if (!resultsCountEl) return;
+    if (hasQuery || hasFilter) resultsCountEl.style.display = 'inline-block';
+    else resultsCountEl.style.display = 'none';
+  }
+
+  function applyFilters(){
+    const q = norm(searchInput?.value || '');
+    const hasSelected = selected.size > 0;
+    let visibleCount = 0;
+    allCards.forEach(card=>{
+      const textOk = (q === '') || norm(card.textContent + ' ' + (card.dataset.category||'')).includes(q);
+      const cardCat = (card.dataset.category || card.querySelector('.tag')?.textContent || '').trim();
+      const catNorm = norm(cardCat);
+      let catMatch = true;
+      if (hasSelected){
+        catMatch = Array.from(selected).some(s => {
+          return norm(s) === 'todas' || catNorm === norm(s) || catNorm.includes(norm(s));
+        });
+      }
+      const show = textOk && catMatch;
+      card.style.display = show ? '' : 'none';
+      if (show) visibleCount++;
+    });
+    if (resultsCountEl) resultsCountEl.textContent = `${visibleCount} resultado(s)`;
+    updateResultsVisibility();
+  }
+
+  // filter click
+  filterBar?.addEventListener('click', (ev)=>{
+    const btn = ev.target.closest('.filter-btn');
+    if (!btn) return;
+    const cat = btn.dataset.category || btn.textContent.trim();
+    if (cat && cat.toLowerCase().includes('todas')){
+      selected.clear();
+      buttons.forEach(b=>b.classList.remove('active'));
+      btn.classList.add('active');
+    } else {
+      // remove todas active
+      buttons.forEach(b => { 
+        if ((b.dataset.category||b.textContent||'').toLowerCase().includes('todas')) 
+          b.classList.remove('active'); 
+      });
+
+      if (selected.has(cat)){
+        selected.delete(cat);
+        btn.classList.remove('active');
+      } else {
+        selected.add(cat);
+        btn.classList.add('active');
+      }
+
+      if (selected.size === 0){
+        const todas = buttons.find(b => (b.dataset.category||b.textContent||'').toLowerCase().includes('todas'));
+        if (todas) todas.classList.add('active');
+      } else {
+        const todas = buttons.find(b => (b.dataset.category||b.textContent||'').toLowerCase().includes('todas'));
+        if (todas) todas.classList.remove('active');
+      }
+    }
+    applyFilters();
+  });
+
+  // clear filter
+  clearBtn?.addEventListener('click', ()=>{
+    selected.clear();
+    buttons.forEach(b=>b.classList.remove('active'));
+    const todas = buttons.find(b => (b.dataset.category||b.textContent||'').toLowerCase().includes('todas'));
+    if (todas) todas.classList.add('active');
+    allCards.forEach(c=>c.style.display='');
+    if (resultsCountEl) { resultsCountEl.textContent = `${allCards.length} resultado(s)`; resultsCountEl.style.display = 'none'; }
+  });
+
+  // search
+  searchInput?.addEventListener('input', ()=> applyFilters());
+
+  // initial
+  applyFilters();
+
+  // expose helper
+  window.applyCategoryFilter = (name) => {
+    const btn = buttons.find(b => ((b.dataset.category||b.textContent)||'').toLowerCase().replace(/\s+/g,'') === String(name).toLowerCase().replace(/\s+/g,''));
+    if (btn) btn.click();
+    else { selected.add(name); applyFilters(); }
+  };
+
+  // ESC closes
+  window.addEventListener('keydown', (e)=> {
+    if (e.key === 'Escape'){
+      closeMenu();
+      document.querySelectorAll('.modal.show').forEach(m=>m.classList.remove('show'));
+      backdrop.classList.remove('show');
+    }
+  });
+
+  // prefs (save/load/apply)
+  (function prefs(){
+    const KEY = 'gamenews:prefs_v3';
+    const themeSelect = $('#themeSelect');
+    const fontSize = $('#fontSize');
+    const fontSizeValue = $('#fontSizeValue');
+    const layoutMode = $('#layoutMode');
+    const notifications = $('#notifications');
+    const autoplayMedia = $('#autoplayMedia');
+    const readingMode = $('#readingMode');
+    const regionSelect = $('#regionSelect');
+    const saveBtn = $('#savePrefs');
+
+    function load(){ try { const r = localStorage.getItem(KEY); return r ? JSON.parse(r) : null; } catch(e){ return null; } }
+    function save(obj){ try { localStorage.setItem(KEY, JSON.stringify(obj)); } catch(e){} }
+
+    function apply(p = {}){
+      const theme = p.theme || 'dark';
+      document.documentElement.setAttribute('data-theme', theme === 'light' ? 'light' : 'dark');
+      const fs = p.fontSize || 16;
+      document.documentElement.style.setProperty('--font-size', fs+'px');
+      if (fontSize) { fontSize.value = fs; if (fontSizeValue) fontSizeValue.textContent = fs + 'px'; }
+      if (themeSelect) themeSelect.value = p.theme || 'dark';
+      if (layoutMode) layoutMode.value = p.layout || 'grid';
+      if (notifications) notifications.checked = !!p.notifications;
+      if (autoplayMedia) autoplayMedia.checked = !!p.autoplay;
+      if (readingMode) readingMode.checked = (p.readingMode !== undefined) ? !!p.readingMode : true;
+      if (regionSelect) regionSelect.value = p.region || 'global';
       applyLayout(p.layout || 'grid');
     }
 
-    // language (simulação)
-    if (languageSel) languageSel.value = p.language || 'pt';
+    function applyLayout(mode){
+      const grid = $('#newsGrid');
+      if (!grid) return;
+      if (mode === 'list'){
+        grid.style.display = 'block';
+        grid.querySelectorAll('.news-card').forEach(card=>{
+          card.style.display = 'flex';
+          card.style.gap = '12px';
+          card.style.alignItems = 'center';
+          const img = card.querySelector('img'); 
+          if (img){ img.style.width='160px'; img.style.height='auto'; }
+        });
+      } else {
+        grid.style.display = '';
+        grid.querySelectorAll('.news-card').forEach(card=>{
+          card.style.display = '';
+          const img = card.querySelector('img'); 
+          if (img){ img.style.width=''; img.style.height=''; }
+        });
+      }
+    }
 
-    // notifications / autoplay (simulação)
-    if (notificationsChk) notificationsChk.checked = !!p.notifications;
-    if (autoplayChk) autoplayChk.checked = !!p.autoplay;
+    // save action
+    saveBtn?.addEventListener('click', ()=>{
+      const prefs = {
+        theme: themeSelect ? themeSelect.value : 'dark',
+        fontSize: fontSize ? parseInt(fontSize.value,10) : 16,
+        layout: layoutMode ? layoutMode.value : 'grid',
+        notifications: notifications ? !!notifications.checked : false,
+        autoplay: autoplayMedia ? !!autoplayMedia.checked : false,
+        readingMode: readingMode ? !!readingMode.checked : true,
+        region: regionSelect ? regionSelect.value : 'global'
+      };
+      apply(prefs);
+      save(prefs);
+      const modal = $('#configModal'); if (modal) closeModal(modal);
+    });
 
-    // atualiza controles visuais (selects / ranges)
-    if (darkModeSel) darkModeSel.value = theme;
-    if (fontSizeRange) fontSizeRange.value = fs;
-  }
+    // live updates
+    fontSize?.addEventListener('input', (e)=> {
+      const v = parseInt(e.target.value,10) || 16;
+      document.documentElement.style.setProperty('--font-size', v+'px');
+      if (fontSizeValue) fontSizeValue.textContent = v+'px';
+    });
+    themeSelect?.addEventListener('change', (e)=> 
+      document.documentElement.setAttribute('data-theme', e.target.value === 'light' ? 'light' : 'dark')
+    );
+    layoutMode?.addEventListener('change', (e)=> applyLayout(e.target.value));
 
-  // aplica layout das notícias imediatamente
-  function applyLayout(mode) {
-    const grid = document.getElementById('newsGrid');
-    if (!grid) return;
-    if (mode === 'list') {
-      grid.style.display = 'block';
-      grid.querySelectorAll('.news-card').forEach(card => {
-        card.style.display = 'flex';
-        card.style.gap = '12px';
-        card.style.alignItems = 'center';
-        card.querySelector('img')?.style && (card.querySelector('img').style.width = '160px');
-        card.querySelector('img')?.style && (card.querySelector('img').style.height = 'auto');
+    // init
+    const saved = load();
+    if (saved) apply(saved);
+    else apply({theme:'dark', fontSize:16, layout:'grid', notifications:false, autoplay:false, readingMode:true, region:'global'});
+  })();
+
+  // make .row.switch-row clickable
+  (function enhanceSwitchRows(){
+    Array.from(document.querySelectorAll('.row.switch-row')).forEach(row => {
+      const checkbox = row.querySelector('input[type="checkbox"]');
+      if (!checkbox) return;
+      row.addEventListener('click', (e) => {
+        const interactive = e.target.closest('input,button,a,select,textarea,label');
+        if (interactive && interactive !== row && interactive !== checkbox) return;
+        checkbox.checked = !checkbox.checked;
+        checkbox.dispatchEvent(new Event('change', { bubbles:true }));
       });
-    } else {
-      grid.style.display = '';
-      grid.querySelectorAll('.news-card').forEach(card => {
-        card.style.display = '';
-        card.style.marginBottom = '';
-        card.style.gap = '';
-        const img = card.querySelector('img');
-        if (img) { img.style.width = ''; img.style.height = ''; }
-      });
+    });
+  })();
+
+  // login demo
+  const loginForm = $('#loginForm');
+  if (loginForm){
+    loginForm.addEventListener('submit', (e)=> {
+      e.preventDefault();
+      alert('Login de demonstração. Integração real pendente.');
+      const mdl = $('#loginModal'); if (mdl) closeModal(mdl);
+    });
+  }
+
+  // ===== Reader modal: open on click of any .news-card or .card-hero anchor =====
+  (function readerModule(){
+    const readerModal = $('#readerModal');
+    const readerTitle = $('#readerTitle');
+    const readerBody = $('#readerBody');
+    const readingToggle = $('#readingMode');
+
+    function openReaderFromElement(el){
+      // extract title, image, content
+      const titleEl = el.querySelector('h2, h3');
+      const pEl = el.querySelector('p') || el.querySelector('.muted') || null;
+      const imgEl = el.querySelector('img');
+
+      const title = titleEl ? titleEl.textContent : 'Notícia';
+      readerTitle.textContent = title;
+
+      // body
+      readerBody.innerHTML = '';
+      if (imgEl && imgEl.src) {
+        const im = document.createElement('img'); 
+        im.src = imgEl.src; 
+        im.alt = imgEl.alt || '';
+        readerBody.appendChild(im);
+      }
+      if (pEl) {
+        const p = document.createElement('p'); 
+        p.textContent = pEl.textContent; 
+        readerBody.appendChild(p);
+      }
+
+      const more = document.createElement('p'); 
+      more.className = 'muted'; 
+      more.textContent = 'Conteúdo demonstrativo — versão simplificada de leitura.';
+      readerBody.appendChild(more);
+
+      const readingEnabled = readingToggle ? !!readingToggle.checked : true;
+      if (readingEnabled) openModal('readerModal');
+      else openModal('readerModal'); 
     }
-  }
 
-  // carregar prefs do localStorage
-  function loadPrefs() {
-    try {
-      const raw = localStorage.getItem(PREF_KEY);
-      if (!raw) return null;
-      return JSON.parse(raw);
-    } catch (e) {
-      console.warn('Erro ao ler preferências:', e);
-      return null;
-    }
-  }
-
-  // salvar prefs no localStorage
-  function savePrefs(p) {
-    try {
-      localStorage.setItem(PREF_KEY, JSON.stringify(p));
-    } catch (e) {
-      console.warn('Erro ao salvar preferências:', e);
-    }
-  }
-
-  // preencher objeto de prefs a partir dos controles
-  function readPrefsFromControls() {
-    return {
-      theme: darkModeSel ? darkModeSel.value : (document.documentElement.getAttribute('data-theme') || 'dark'),
-      fontSize: fontSizeRange ? parseInt(fontSizeRange.value, 10) : 16,
-      language: languageSel ? languageSel.value : 'pt',
-      layout: layoutModeSel ? layoutModeSel.value : 'grid',
-      notifications: notificationsChk ? !!notificationsChk.checked : false,
-      autoplay: autoplayChk ? !!autoplayChk.checked : false,
-    };
-  }
-
-  // handlers: abrir modal configurações
-  if (openConfigBtn && configModal) {
-    openConfigBtn.addEventListener('click', () => {
-      configModal.classList.add('show');
-      configModal.setAttribute('aria-hidden', 'false');
-      // mostra backdrop (reaproveita backdrop existente)
-      document.getElementById('backdrop')?.classList.add('show');
+    document.body.addEventListener('click', (e)=>{
+      const a = e.target.closest('a.news-card, a.card-hero');
+      if (!a) return;
+      e.preventDefault();
+      openReaderFromElement(a);
     });
-  }
 
-  // salvar
-  if (savePrefsBtn) {
-    savePrefsBtn.addEventListener('click', () => {
-      const prefs = readPrefsFromControls();
-      applyPrefs(prefs);
-      savePrefs(prefs);
-      // fecha modal
-      configModal.classList.remove('show');
-      configModal.setAttribute('aria-hidden', 'true');
-      document.getElementById('backdrop')?.classList.remove('show');
-    });
-  }
+  })();
 
-  // fecha ao clicar em elementos com data-close="config" (ja presente no overlay e botões)
-  document.querySelectorAll('[data-close="config"]').forEach(el => {
-    el.addEventListener('click', () => {
-      configModal.classList.remove('show');
-      configModal.setAttribute('aria-hidden', 'true');
-      document.getElementById('backdrop')?.classList.remove('show');
-    });
-  });
+}); // END onReady
 
-  // atualiza fontes e layout em tempo real quando o usuário mexe nos controles (melhora UX)
-  if (fontSizeRange) {
-    fontSizeRange.addEventListener('input', (e) => {
-      const v = parseInt(e.target.value, 10) || 16;
-      document.documentElement.style.setProperty('--font-size', v + 'px');
-    });
-  }
-  if (layoutModeSel) {
-    layoutModeSel.addEventListener('change', (e) => applyLayout(e.target.value));
-  }
-  if (darkModeSel) {
-    darkModeSel.addEventListener('change', (e) => {
-      const t = e.target.value;
-      document.documentElement.setAttribute('data-theme', t === 'light' ? 'light' : 'dark');
-    });
-  }
 
-  // inicialização: carrega prefs salvos e aplica
-  const saved = loadPrefs();
-  if (saved) applyPrefs(saved);
-})();
+
+// ======================================================================
+// === CARROSSEL DE DESTAQUES — versão correta para o seu HTML atual ===
+// ======================================================================
+
+let currentSlide = 0;
+const track = document.getElementById("carouselTrack");
+const slides = document.querySelectorAll(".carousel-item");
+
+function updateCarousel() {
+  track.style.transform = `translateX(-${currentSlide * 100}%)`;
+}
+
+document.getElementById("carouselNext").addEventListener("click", () => {
+  currentSlide = (currentSlide + 1) % slides.length;
+  updateCarousel();
+});
+
+document.getElementById("carouselPrev").addEventListener("click", () => {
+  currentSlide = (currentSlide - 1 + slides.length) % slides.length;
+  updateCarousel();
+});
+
+// Auto-play (5s)
+setInterval(() => {
+  currentSlide = (currentSlide + 1) % slides.length;
+  updateCarousel();
+}, 5000);
